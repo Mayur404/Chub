@@ -54,8 +54,15 @@ app.*.map.json
 **/ios/.symlinks/
 **/ios/Flutter/Flutter.framework
 **/ios/Flutter/Flutter.podspec
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/Generated.xcconfig
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS related
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Flutter/Flutter-Generated.xcconfig
 
 # Windows related
 Thumbs.db
