@@ -62,7 +62,10 @@ class _BusPageState extends State<BusPage> {
   }
 
   // **FIX**: Combined loadData and fetchData into a more robust single function.
-  Future<void> _loadAndFetchData() async {
+  // It will:
+  // - On first open: load cached data if available, otherwise fetch from network.
+  // - On refresh: always fetch from network.
+  Future<void> _loadAndFetchData({bool forceRefresh = false}) async {
     setState(() {
       isLoading = true;
     });
@@ -73,9 +76,21 @@ class _BusPageState extends State<BusPage> {
     // If we have cached data, display it first for a faster user experience.
     if (savedData != null) {
       _processBusData(List<Map<String, dynamic>>.from(json.decode(savedData)));
+
+      // If this is the automatic load on first open and we already have cached data,
+      // we don't need to hit the network again. The user can always pull fresh data
+      // with the refresh button.
+      if (!forceRefresh) {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+        return;
+      }
     }
 
-    // Then, fetch fresh data from the network.
+    // If there is no cache or the user explicitly requested a refresh, fetch fresh data.
     try {
       final response = await ApiService(apiUrl: apiUrl).fetchData();
       await prefs.setString('bus_data', json.encode(response));
@@ -181,91 +196,94 @@ class _BusPageState extends State<BusPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadAndFetchData, // Use the consolidated loading function
+            // Force a fresh fetch when the user explicitly taps refresh.
+            onPressed: () => _loadAndFetchData(forceRefresh: true), // Use the consolidated loading function
           ),
         ],
       ),
-      body: isLoading && busSchedule[selectedSchedule]!.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : Column(
-              children: [
-                // Next Bus Widget
-                Card(
-                  color: const Color.fromARGB(255, 122, 133, 133),
-                  margin: const EdgeInsets.all(25),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
+      body: SafeArea(
+        child: isLoading && busSchedule[selectedSchedule]!.isEmpty
+            ? const Center(child: CircularProgressIndicator(color: Colors.white))
+            : Column(
+                children: [
+                  // Next Bus Widget
+                  Card(
+                    color: const Color.fromARGB(255, 122, 133, 133),
+                    margin: const EdgeInsets.all(25),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          const Text("Next Bus", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB))),
+                          const SizedBox(height: 5),
+                          Text(
+                            nextBusTime == "No buses available" ? "No more buses for today" : "$nextBusPickup → $nextBusDrop",
+                            style: const TextStyle(fontSize: 18, color: Color(0xFFE0E2DB)),
+                            textAlign: TextAlign.center,
+                          ),
+                          Text(
+                            nextBusTime,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Schedule Selector
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text("Next Bus", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB))),
-                        const SizedBox(height: 5),
-                        Text(
-                          nextBusTime == "No buses available" ? "No more buses for today" : "$nextBusPickup → $nextBusDrop",
-                          style: const TextStyle(fontSize: 18, color: Color(0xFFE0E2DB)),
-                          textAlign: TextAlign.center,
+                        const Text("Weekday", style: TextStyle(fontSize: 16, color: Color(0xFFE0E2DB))),
+                        Switch(
+                          activeColor: const Color(0xFFE0E2DB),
+                          inactiveThumbColor: const Color.fromARGB(255, 122, 133, 133),
+                          inactiveTrackColor: const Color(0xFFE0E2DB),
+                          value: selectedSchedule == "Weekend/Holiday",
+                          onChanged: (bool value) {
+                            setState(() {
+                              selectedSchedule = value ? "Weekend/Holiday" : "Weekday";
+                              _findNextBus();
+                            });
+                          },
                         ),
-                        Text(
-                          nextBusTime,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB)),
-                        ),
+                        const Text("Weekend", style: TextStyle(fontSize: 16, color: Color(0xFFE0E2DB))),
                       ],
                     ),
                   ),
-                ),
 
-                // Schedule Selector
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text("Weekday", style: TextStyle(fontSize: 16, color: Color(0xFFE0E2DB))),
-                      Switch(
-                        activeColor: const Color(0xFFE0E2DB),
-                        inactiveThumbColor: const Color.fromARGB(255, 122, 133, 133),
-                        inactiveTrackColor: const Color(0xFFE0E2DB),
-                        value: selectedSchedule == "Weekend/Holiday",
-                        onChanged: (bool value) {
-                          setState(() {
-                            selectedSchedule = value ? "Weekend/Holiday" : "Weekday";
-                            _findNextBus();
-                          });
-                        },
-                      ),
-                      const Text("Weekend", style: TextStyle(fontSize: 16, color: Color(0xFFE0E2DB))),
-                    ],
-                  ),
-                ),
-
-                // Bus Schedule List
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: busSchedule[selectedSchedule]!.length,
-                    itemBuilder: (context, index) {
-                      final bus = busSchedule[selectedSchedule]![index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                        ),
-                        color: const Color.fromARGB(255, 122, 133, 133),
-                        child: ListTile(
-                          tileColor: Colors.transparent,
-                          title: Text(
-                            "${bus['Pickup']} → ${bus['Drop']}",
-                            style: const TextStyle(fontSize: 20, color: Color(0xFFE0E2DB)),
+                  // Bus Schedule List
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: busSchedule[selectedSchedule]!.length,
+                      itemBuilder: (context, index) {
+                        final bus = busSchedule[selectedSchedule]![index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16.0),
                           ),
-                          subtitle: Text(
-                            bus['Time'] ?? "Unknown Time",
-                            style: const TextStyle(fontSize: 16, color: Color(0xFFE0E2DB)),
+                          color: const Color.fromARGB(255, 122, 133, 133),
+                          child: ListTile(
+                            tileColor: Colors.transparent,
+                            title: Text(
+                              "${bus['Pickup']} → ${bus['Drop']}",
+                              style: const TextStyle(fontSize: 20, color: Color(0xFFE0E2DB)),
+                            ),
+                            subtitle: Text(
+                              bus['Time'] ?? "Unknown Time",
+                              style: const TextStyle(fontSize: 16, color: Color(0xFFE0E2DB)),
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

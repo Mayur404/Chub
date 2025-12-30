@@ -115,51 +115,53 @@ class _MessPageState extends State<MessPage> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : PageView.builder(
-              controller: _pageController,
-              itemCount: daysOfWeek.length,
-              itemBuilder: (context, index) {
-                String day = daysOfWeek[index];
-                List<Map<String, String>> mealsForDay = messMenu[day]!;
+      body: SafeArea(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : PageView.builder(
+                controller: _pageController,
+                itemCount: daysOfWeek.length,
+                itemBuilder: (context, index) {
+                  String day = daysOfWeek[index];
+                  List<Map<String, String>> mealsForDay = messMenu[day]!;
 
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        day,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFE0E2DB),
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          day,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFE0E2DB),
+                          ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: mealsForDay.length,
-                        itemBuilder: (context, index) {
-                          String meal = mealsForDay[index]['Meal'] ?? '';
-                          String item = mealsForDay[index]['Item'] ?? '';
-                          return Card(
-                            color: const Color.fromARGB(255, 122, 133, 133),
-                            elevation: 4,
-                            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            child: ListTile(
-                              leading: const Icon(Icons.restaurant_menu, color: Color.fromARGB(255, 236, 238, 232)),
-                              title: Text(meal, style: const TextStyle(fontSize: 32,fontWeight: FontWeight.bold, color: Color.fromARGB(255, 242, 243, 238))),
-                              subtitle: Text(item, style: const TextStyle(color: Color.fromARGB(255, 201, 202, 196))),
-                            ),
-                          );
-                        },
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: mealsForDay.length,
+                          itemBuilder: (context, index) {
+                            String meal = mealsForDay[index]['Meal'] ?? '';
+                            String item = mealsForDay[index]['Item'] ?? '';
+                            return Card(
+                              color: const Color.fromARGB(255, 122, 133, 133),
+                              elevation: 4,
+                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              child: ListTile(
+                                leading: const Icon(Icons.restaurant_menu, color: Color.fromARGB(255, 236, 238, 232)),
+                                title: Text(meal, style: const TextStyle(fontSize: 32,fontWeight: FontWeight.bold, color: Color.fromARGB(255, 242, 243, 238))),
+                                subtitle: Text(item, style: const TextStyle(color: Color.fromARGB(255, 201, 202, 196))),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                    ],
+                  );
+                },
+              ),
+      ),
     );
   }
 

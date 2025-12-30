@@ -41,6 +41,9 @@ class _TimetablePageState extends State<TimetablePage> {
     'Sunday': [],
   };
 
+  // Track deleted API courses (will be restored on refresh)
+  Set<String> deletedApiCourses = {}; // Format: "Day_Time_Subject"
+
   // State variables for displaying class information
   String currentClass = "No class currently";
   String currentClassEndTime = "";
@@ -106,7 +109,11 @@ class _TimetablePageState extends State<TimetablePage> {
   Future<void> _initializeData() async {
     await _loadSavedOptions();
     await _loadCustomCourses();
-    await _fetchData(isInitialLoad: true);
+    await _loadDeletedApiCourses();
+    // On the very first open, we want to fetch from the network only if there is
+    // no cached timetable yet for the selected year/branch. If cached data exists,
+    // we'll just use that and avoid an unnecessary auto-fetch.
+    await _fetchData(isInitialLoad: true, skipIfCacheAvailable: true);
   }
   
   Future<void> _loadSavedOptions() async {
@@ -123,7 +130,7 @@ class _TimetablePageState extends State<TimetablePage> {
     await prefs.setString('selectedBranch', selectedBranch);
   }
 
-  Future<void> _fetchData({bool isInitialLoad = false}) async {
+  Future<void> _fetchData({bool isInitialLoad = false, bool skipIfCacheAvailable = false}) async {
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -137,7 +144,16 @@ class _TimetablePageState extends State<TimetablePage> {
       final String? cachedData = prefs.getString(cacheKey);
       if (cachedData != null) {
         _processTimetableData(List<Map<String, dynamic>>.from(json.decode(cachedData)));
-        setState(() { isLoading = false; }); // Show cached data immediately
+        // If requested, stop here and don't hit the network at all.
+        if (skipIfCacheAvailable) {
+          setState(() {
+            isLoading = false;
+          });
+          return;
+        }
+        setState(() {
+          isLoading = false;
+        }); // Show cached data immediately
       }
     }
 
@@ -145,6 +161,11 @@ class _TimetablePageState extends State<TimetablePage> {
       final apiUrl = apiUrls[selectedYear]![selectedBranch]!;
       final response = await ApiService(apiUrl: apiUrl).fetchData();
       await prefs.setString(cacheKey, json.encode(response));
+      
+      // Clear deleted courses when refreshing from API (they will come back)
+      deletedApiCourses.clear();
+      await _saveDeletedApiCourses();
+      
       _processTimetableData(response);
     } catch (e) {
       print('Error fetching data: $e');
@@ -178,7 +199,18 @@ class _TimetablePageState extends State<TimetablePage> {
       final String subject = entry['Subject'] ?? '';
 
       if (timetable.containsKey(day) && time.isNotEmpty && subject.isNotEmpty) {
-        timetable[day]!.add({'Time': time, 'Subject': subject, 'isCustom': 'false'});
+        // Create unique key for this API course
+        final courseKey = _getApiCourseKey(day, time, subject);
+        
+        // Only add if not deleted
+        if (!deletedApiCourses.contains(courseKey)) {
+          timetable[day]!.add({
+            'Time': time,
+            'Subject': subject,
+            'isCustom': 'false',
+            'courseKey': courseKey,
+          });
+        }
       }
     }
 
@@ -199,6 +231,11 @@ class _TimetablePageState extends State<TimetablePage> {
     });
     
     _findCurrentAndNextClass();
+  }
+
+  // Generate unique key for API course
+  String _getApiCourseKey(String day, String time, String subject) {
+    return '${day}_${time}_${subject}';
   }
 
   // Merge custom courses with API courses
@@ -222,6 +259,50 @@ class _TimetablePageState extends State<TimetablePage> {
         }
       }
     });
+  }
+
+  // Load deleted API courses from SharedPreferences
+  Future<void> _loadDeletedApiCourses() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedDeletedCourses = prefs.getString('deleted_api_courses');
+    
+    if (savedDeletedCourses != null) {
+      try {
+        List<dynamic> decoded = json.decode(savedDeletedCourses);
+        deletedApiCourses = decoded.map((e) => e.toString()).toSet();
+      } catch (e) {
+        print('Error loading deleted API courses: $e');
+        deletedApiCourses = {};
+      }
+    }
+  }
+
+  // Save deleted API courses to SharedPreferences
+  Future<void> _saveDeletedApiCourses() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('deleted_api_courses', json.encode(deletedApiCourses.toList()));
+  }
+
+  // Delete API course (temporary - will come back on refresh)
+  Future<void> _deleteApiCourse(String day, String courseKey) async {
+    deletedApiCourses.add(courseKey);
+    await _saveDeletedApiCourses();
+    
+    // Remove from timetable display
+    timetable[day]!.removeWhere((course) => course['courseKey'] == courseKey);
+    
+    // Re-sort and update
+    _sortAndUpdateTimetable();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Course deleted. It will be restored when you refresh.'),
+          backgroundColor: Color.fromARGB(255, 122, 133, 133),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   // Load custom courses from SharedPreferences
@@ -799,50 +880,68 @@ class _TimetablePageState extends State<TimetablePage> {
                                           customIndex = customCourses[day]!.indexWhere((c) => c['id'] == courseId);
                                         }
                                         
+                                        // Get course key for API courses
+                                        String apiCourseKey = entry['courseKey'] ?? '';
+                                        
                                         return Dismissible(
-                                          key: Key('${day}_${i}_${courseId}'),
-                                          direction: isCustom ? DismissDirection.endToStart : DismissDirection.none,
+                                          key: Key('${day}_${i}_${isCustom ? courseId : apiCourseKey}'),
+                                          direction: DismissDirection.endToStart, // Allow swipe for both types
                                           background: Container(
                                             color: const Color.fromARGB(255, 232, 76, 65),
                                             alignment: Alignment.centerRight,
                                             padding: const EdgeInsets.only(right: 20),
-                                            child: const Icon(Icons.delete, color: Colors.white),
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const Icon(Icons.delete, color: Colors.white),
+                                                if (!isCustom)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(top: 4),
+                                                    child: Text(
+                                                      'Will restore\non refresh',
+                                                      style: TextStyle(color: Colors.white, fontSize: 10),
+                                                      textAlign: TextAlign.center,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
                                           confirmDismiss: (direction) async {
-                                            if (isCustom) {
-                                              return await showDialog<bool>(
-                                                context: context,
-                                                builder: (context) => AlertDialog(
-                                                  backgroundColor: const Color.fromARGB(255, 62, 78, 75),
-                                                  title: const Text('Delete Course', style: TextStyle(color: Color(0xFFE0E2DB))),
-                                                  content: Text(
-                                                    'Are you sure you want to delete "${entry['Subject']}"?',
-                                                    style: const TextStyle(color: Color(0xFFE0E2DB)),
-                                                  ),
-                                                  actions: [
-                                                    TextButton(
-                                                      style: ButtonStyle(
-                                                        foregroundColor: WidgetStateProperty.all(const Color(0xFFE0E2DB)),
-                                                      ),
-                                                      onPressed: () => Navigator.pop(context, false),
-                                                      child: const Text('Cancel'),
-                                                    ),
-                                                    ElevatedButton(
-                                                      style: ButtonStyle(
-                                                        backgroundColor: WidgetStateProperty.all(const Color.fromARGB(255, 232, 76, 65)),
-                                                      ),
-                                                      onPressed: () => Navigator.pop(context, true),
-                                                      child: const Text('Delete', style: TextStyle(color: Colors.white)),
-                                                    ),
-                                                  ],
+                                            return await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                backgroundColor: const Color.fromARGB(255, 62, 78, 75),
+                                                title: const Text('Delete Course', style: TextStyle(color: Color(0xFFE0E2DB))),
+                                                content: Text(
+                                                  isCustom
+                                                      ? 'Are you sure you want to delete "${entry['Subject']}"?'
+                                                      : 'Delete "${entry['Subject']}"?\n\nThis course will be restored when you refresh.',
+                                                  style: const TextStyle(color: Color(0xFFE0E2DB)),
                                                 ),
-                                              ) ?? false;
-                                            }
-                                            return false;
+                                                actions: [
+                                                  TextButton(
+                                                    style: ButtonStyle(
+                                                      foregroundColor: WidgetStateProperty.all(const Color(0xFFE0E2DB)),
+                                                    ),
+                                                    onPressed: () => Navigator.pop(context, false),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                                    ElevatedButton(
+                                                    style: ButtonStyle(
+                                                      backgroundColor: WidgetStateProperty.all(const Color.fromARGB(255, 232, 76, 65)),
+                                                    ),
+                                                    onPressed: () => Navigator.pop(context, true),
+                                                    child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                                  ),
+                                                ],
+                                              ),
+                                            ) ?? false;
                                           },
                                           onDismissed: (direction) {
                                             if (isCustom && customIndex >= 0) {
                                               _deleteCustomCourse(day, customIndex);
+                                            } else if (!isCustom && apiCourseKey.isNotEmpty) {
+                                              _deleteApiCourse(day, apiCourseKey);
                                             }
                                           },
                                           child: Card(

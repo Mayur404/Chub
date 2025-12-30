@@ -33,62 +33,64 @@ class HomePage extends StatelessWidget {
         backgroundColor: const Color.fromARGB(255, 62, 78, 75), // Medium-dark AppBar
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Column(
-          children: [
-            const SizedBox(height: 15),
-            Expanded(
-              child: _buildMenuItem(
-                context,
-                title: 'Bus',
-                icon: Icons.directions_bus,
-                color: const Color.fromARGB(255, 122, 133, 133),
-                destination: const BusPage(),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            children: [
+              const SizedBox(height: 15),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  title: 'Bus',
+                  icon: Icons.directions_bus,
+                  color: const Color.fromARGB(255, 122, 133, 133),
+                  destination: const BusPage(),
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: _buildMenuItem(
-                context,
-                title: 'Mess',
-                icon: Icons.fastfood,
-                color: const Color.fromARGB(255, 122, 133, 133),
-                destination: const MessPage(),
+              const SizedBox(height: 15),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  title: 'Mess',
+                  icon: Icons.fastfood,
+                  color: const Color.fromARGB(255, 122, 133, 133),
+                  destination: const MessPage(),
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: _buildMenuItem(
-                context,
-                title: 'Timetable',
-                icon: Icons.schedule,
-                color: const Color.fromARGB(255, 122, 133, 133),
-                destination: const TimetablePage(),
+              const SizedBox(height: 15),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  title: 'Timetable',
+                  icon: Icons.schedule,
+                  color: const Color.fromARGB(255, 122, 133, 133),
+                  destination: const TimetablePage(),
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: _buildMenuItem(
-                context,
-                title: 'Events and Holidays',
-                icon: Icons.calendar_month,
-                color: const Color.fromARGB(255, 122, 133, 133),
-                destination: const EHPage(),
+              const SizedBox(height: 15),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  title: 'Holidays',
+                  icon: Icons.calendar_month,
+                  color: const Color.fromARGB(255, 122, 133, 133),
+                  destination: const EHPage(),
+                ),
               ),
-            ),
-            const SizedBox(height: 15),
-            Expanded(
-              child: _buildMenuItem(
-                context,
-                title: 'Debt Tracker',
-                icon: Icons.monetization_on,
-                color: const Color.fromARGB(255, 122, 133, 133),
-                destination: const DebtTrackerPage(),
+              const SizedBox(height: 15),
+              Expanded(
+                child: _buildMenuItem(
+                  context,
+                  title: 'Debt Tracker',
+                  icon: Icons.monetization_on,
+                  color: const Color.fromARGB(255, 122, 133, 133),
+                  destination: const DebtTrackerPage(),
+                ),
               ),
-            ),
-            const SizedBox(height: 45),
-          ],
+              const SizedBox(height: 45),
+            ],
+          ),
         ),
       ),
     );

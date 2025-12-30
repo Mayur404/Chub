@@ -21,16 +21,25 @@ class _EHPageState extends State<EHPage> {
     loadData();
   }
 
+  // On first open, load cached data if present and only fetch from the network
+  // when there is no local data yet. The user can always force a refresh using
+  // the refresh button in the AppBar.
   Future<void> loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? savedData = prefs.getString('holidays_data');
+
     if (savedData != null) {
       setState(() {
         holidays = json.decode(savedData);
         isLoading = false;
       });
+      // We already have data for this device, so we skip the initial network fetch.
+      // This means it will only fetch automatically the very first time (when there's no cache).
+      return;
     }
-    fetchData();
+
+    // No cached data yet → fetch once automatically.
+    await fetchData();
   }
 
   Future<void> fetchData() async {
@@ -92,38 +101,40 @@ class _EHPageState extends State<EHPage> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : holidays.isEmpty
-              ? const Center(child: Text('No data available'))
-              : ListView.builder(
-                  itemCount: holidays.length,
-                  itemBuilder: (context, index) {
-                    final event = holidays[index];
-                    return Card(
-                      color: const Color.fromARGB(255, 122, 133, 133),
-                      elevation: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event['Event'] ?? 'No Event',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB)),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${event['Date'] ?? ''} - ${event['Day'] ?? ''}',
-                              style: const TextStyle(fontSize: 18, color: Color(0xFFE0E2DB)),
-                            ),
-                          ],
+      body: SafeArea(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : holidays.isEmpty
+                ? const Center(child: Text('No data available'))
+                : ListView.builder(
+                    itemCount: holidays.length,
+                    itemBuilder: (context, index) {
+                      final event = holidays[index];
+                      return Card(
+                        color: const Color.fromARGB(255, 122, 133, 133),
+                        elevation: 4,
+                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event['Event'] ?? 'No Event',
+                                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB)),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${event['Date'] ?? ''} - ${event['Day'] ?? ''}',
+                                style: const TextStyle(fontSize: 18, color: Color(0xFFE0E2DB)),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+      ),
     );
   }
 }

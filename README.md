@@ -4,7 +4,6 @@ A Flutter application designed to help students manage their daily activities an
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.7.0+-02569B?logo=flutter)
 ![Dart](https://img.shields.io/badge/Dart-3.7.0+-0175C2?logo=dart)
-![License](https://img.shields.io/badge/License-MIT-green)
 
 ## ✨ Features
 
@@ -13,8 +12,6 @@ A Flutter application designed to help students manage their daily activities an
 - 📅 **Timetable** - View your class schedule organized by day
 - 📆 **Events & Holidays** - Keep track of upcoming events and holidays
 - 💰 **Debt Tracker** - Manage and track personal debts and expenses with add/remove functionality
-
-## 📸 Screenshots
 
 The app features a modern dark theme with a clean, intuitive UI built with Flutter Material Design.
 
@@ -153,31 +150,3 @@ Output: `build/app/outputs/flutter-apk/app-release.apk`
 flutter build appbundle --release
 ```
 Output: `build/app/outputs/bundle/release/app-release.aab`
-
-### iOS
-```bash
-flutter build ios --release
-```
-Then open Xcode and archive for App Store submission.
-
-### Web
-```bash
-flutter build web --release
-```
-Output: `build/web/` directory
-
-
-## 🧪 Testing
-
-Run tests with:
-```bash
-flutter test
-```
-
-## 📝 Development Notes
-
-- The app is configured to run in **portrait mode only**
-- Data is cached locally using SharedPreferences for offline access
-- Bus schedules update every 30 seconds to show the next available bus
-- All pages support pull-to-refresh functionality
-
