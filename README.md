@@ -9,7 +9,7 @@ A Flutter application designed to help students manage their daily activities an
 ## ✨ Features
 
 - 🚌 **Bus Tracker** - View bus schedules for weekdays and weekends/holidays with real-time next bus information
-- 🍽️ **Mess Schedule** - Track mess (dining hall) timings and menus with day-by-day navigation
+- 🍽️ **Mess Schedule** - Track mess menu
 - 📅 **Timetable** - View your class schedule organized by day
 - 📆 **Events & Holidays** - Keep track of upcoming events and holidays
 - 💰 **Debt Tracker** - Manage and track personal debts and expenses with add/remove functionality
@@ -20,21 +20,6 @@ The app features a modern dark theme with a clean, intuitive UI built with Flutt
 
 ### Home Screen
 ![Home Screen](screenshots/home.png)
-
-### Bus Schedule
-![Bus Schedule](screenshots/bus.png)
-
-### Mess Menu
-![Mess Menu](screenshots/mess.png)
-
-### Timetable
-![Timetable](screenshots/timetable.png)
-
-### Events & Holidays
-![Events & Holidays](screenshots/events.png)
-
-### Debt Tracker
-![Debt Tracker](screenshots/debt_tracker.png)
 
 
 ## 🚀 Getting Started

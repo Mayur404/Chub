@@ -30,6 +30,17 @@ class _TimetablePageState extends State<TimetablePage> {
     'Sunday': [],
   };
 
+  // Custom courses stored separately
+  Map<String, List<Map<String, String>>> customCourses = {
+    'Monday': [],
+    'Tuesday': [],
+    'Wednesday': [],
+    'Thursday': [],
+    'Friday': [],
+    'Saturday': [],
+    'Sunday': [],
+  };
+
   // State variables for displaying class information
   String currentClass = "No class currently";
   String currentClassEndTime = "";
@@ -94,6 +105,7 @@ class _TimetablePageState extends State<TimetablePage> {
 
   Future<void> _initializeData() async {
     await _loadSavedOptions();
+    await _loadCustomCourses();
     await _fetchData(isInitialLoad: true);
   }
   
@@ -157,7 +169,7 @@ class _TimetablePageState extends State<TimetablePage> {
   }
 
   void _processTimetableData(List<Map<String, dynamic>> data) {
-    // Clear existing data
+    // Clear existing API data (but keep custom courses)
     timetable.forEach((key, value) => value.clear());
 
     for (var entry in data) {
@@ -166,10 +178,13 @@ class _TimetablePageState extends State<TimetablePage> {
       final String subject = entry['Subject'] ?? '';
 
       if (timetable.containsKey(day) && time.isNotEmpty && subject.isNotEmpty) {
-        timetable[day]!.add({'Time': time, 'Subject': subject});
+        timetable[day]!.add({'Time': time, 'Subject': subject, 'isCustom': 'false'});
       }
     }
 
+    // Merge custom courses with API courses
+    _mergeCustomCourses();
+    
     // **IMPROVEMENT**: Sort classes by time to ensure "next class" logic is correct.
     timetable.forEach((day, classes) {
       classes.sort((a, b) {
@@ -186,12 +201,95 @@ class _TimetablePageState extends State<TimetablePage> {
     _findCurrentAndNextClass();
   }
 
+  // Merge custom courses with API courses
+  void _mergeCustomCourses() {
+    customCourses.forEach((day, customClasses) {
+      for (var customClass in customClasses) {
+        // Check if this custom course already exists in timetable
+        bool exists = timetable[day]!.any((course) =>
+          course['Subject'] == customClass['Subject'] &&
+          course['Time'] == customClass['Time'] &&
+          course['isCustom'] == 'true'
+        );
+        
+        if (!exists) {
+          timetable[day]!.add({
+            'Time': customClass['Time']!,
+            'Subject': customClass['Subject']!,
+            'isCustom': 'true',
+            'id': customClass['id'] ?? '',
+          });
+        }
+      }
+    });
+  }
+
+  // Load custom courses from SharedPreferences
+  Future<void> _loadCustomCourses() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedCustomCourses = prefs.getString('custom_courses');
+    
+    if (savedCustomCourses != null) {
+      try {
+        List<dynamic> decoded = json.decode(savedCustomCourses);
+        customCourses.forEach((key, value) => value.clear());
+        
+        for (var course in decoded) {
+          String day = course['Day'] ?? '';
+          if (customCourses.containsKey(day)) {
+            customCourses[day]!.add({
+              'Time': course['Time'] ?? '',
+              'Subject': course['Subject'] ?? '',
+              'id': course['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            });
+          }
+        }
+      } catch (e) {
+        print('Error loading custom courses: $e');
+      }
+    }
+  }
+
+  // Save custom courses to SharedPreferences
+  Future<void> _saveCustomCourses() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> coursesToSave = [];
+    
+    customCourses.forEach((day, classes) {
+      for (var course in classes) {
+        coursesToSave.add({
+          'Day': day,
+          'Time': course['Time'] ?? '',
+          'Subject': course['Subject'] ?? '',
+          'id': course['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        });
+      }
+    });
+    
+    await prefs.setString('custom_courses', json.encode(coursesToSave));
+  }
+
   // **IMPROVEMENT**: Made time parsing more robust. It now returns a predictable
   // date on failure to prevent unpredictable sorting or comparison behavior.
+  // Handles both 24-hour format (HH:mm) and 12-hour format (h:mm AM/PM)
   DateTime _parseTime(String time) {
     try {
+      final timeTrimmed = time.trim();
+      
+      // First try 24-hour format (HH:mm)
+      final time24Pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$');
+      final match24 = time24Pattern.firstMatch(timeTrimmed);
+      
+      if (match24 != null) {
+        int hours = int.parse(match24.group(1)!);
+        int minutes = int.parse(match24.group(2)!);
+        final now = DateTime.now();
+        return DateTime(now.year, now.month, now.day, hours, minutes);
+      }
+      
+      // Fallback to 12-hour format (h:mm AM/PM)
       final regExp = RegExp(r'(\d{1,2}):(\d{2})\s?(AM|PM)?', caseSensitive: false);
-      final match = regExp.firstMatch(time.trim());
+      final match = regExp.firstMatch(timeTrimmed);
 
       if (match == null) return DateTime(1970); // Return a very old date on failure
 
@@ -282,6 +380,307 @@ class _TimetablePageState extends State<TimetablePage> {
     });
     await _saveSelectedOptions();
     await _fetchData();
+  }
+
+  // Show dialog to add/edit custom course
+  Future<void> _showAddCourseDialog({String? day, Map<String, String>? courseToEdit, int? editIndex}) async {
+    String selectedDay = day ?? daysOfWeek[0];
+    String subject = courseToEdit?['Subject'] ?? '';
+    String startTime = '';
+    String endTime = '';
+    
+    if (courseToEdit != null && courseToEdit['Time'] != null) {
+      final timeParts = courseToEdit['Time']!.split(' - ');
+      if (timeParts.length == 2) {
+        startTime = timeParts[0];
+        endTime = timeParts[1];
+      }
+    }
+
+    final TextEditingController subjectController = TextEditingController(text: subject);
+    final TextEditingController startTimeController = TextEditingController(text: startTime);
+    final TextEditingController endTimeController = TextEditingController(text: endTime);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 62, 78, 75),
+              title: Text(
+                courseToEdit == null ? 'Add Custom Course' : 'Edit Course',
+                style: const TextStyle(color: Color(0xFFE0E2DB)),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Day selector
+                    DropdownButtonFormField<String>(
+                      value: selectedDay,
+                      dropdownColor: const Color.fromARGB(255, 122, 133, 133),
+                      style: const TextStyle(color: Color(0xFFE0E2DB)),
+                      decoration: const InputDecoration(
+                        labelText: 'Day',
+                        labelStyle: TextStyle(color: Color(0xFFE0E2DB)),
+                      ),
+                      items: daysOfWeek.map((day) {
+                        return DropdownMenuItem(value: day, child: Text(day));
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedDay = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Subject field
+                    TextField(
+                      controller: subjectController,
+                      style: const TextStyle(color: Color(0xFFE0E2DB)),
+                      decoration: const InputDecoration(
+                        labelText: 'Subject/Course Name',
+                        labelStyle: TextStyle(color: Color(0xFFE0E2DB)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Start time
+                    TextField(
+                      controller: startTimeController,
+                      style: const TextStyle(color: Color(0xFFE0E2DB)),
+                      decoration: const InputDecoration(
+                        labelText: 'Start Time (24-hour format)',
+                        labelStyle: TextStyle(color: Color(0xFFE0E2DB)),
+                        hintText: '16:00',
+                        hintStyle: TextStyle(color: Colors.grey),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    // End time
+                    TextField(
+                      controller: endTimeController,
+                      style: const TextStyle(color: Color(0xFFE0E2DB)),
+                      decoration: const InputDecoration(
+                        labelText: 'End Time (24-hour format)',
+                        labelStyle: TextStyle(color: Color(0xFFE0E2DB)),
+                        hintText: '18:00',
+                        hintStyle: TextStyle(color: Colors.grey),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  style: ButtonStyle(
+                    foregroundColor: WidgetStateProperty.all(const Color(0xFFE0E2DB)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.all(const Color.fromARGB(255, 122, 133, 133)),
+                  ),
+                  onPressed: () {
+                    final subjectText = subjectController.text.trim();
+                    final startTimeText = startTimeController.text.trim();
+                    final endTimeText = endTimeController.text.trim();
+
+                    // Validate inputs
+                    if (subjectText.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a subject/course name'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (startTimeText.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a start time'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (endTimeText.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter an end time'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Validate time format (24-hour format: HH:mm)
+                    if (!_isValid24HourFormat(startTimeText)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Invalid start time format. Use 24-hour format like "16:00" or "09:30"'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (!_isValid24HourFormat(endTimeText)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Invalid end time format. Use 24-hour format like "18:00" or "10:30"'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // Validate that end time is after start time
+                    try {
+                      DateTime startTime = _parseTime24(startTimeText);
+                      DateTime endTime = _parseTime24(endTimeText);
+                      
+                      if (endTime.isBefore(startTime) || endTime.isAtSameMomentAs(startTime)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('End time must be after start time'),
+                            backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Error parsing time. Please check the format (HH:mm)'),
+                          backgroundColor: Color.fromARGB(255, 232, 76, 65),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final timeString = '$startTimeText - $endTimeText';
+                    
+                    if (courseToEdit == null) {
+                      // Add new course
+                      final newId = DateTime.now().millisecondsSinceEpoch.toString();
+                      customCourses[selectedDay]!.add({
+                        'Time': timeString,
+                        'Subject': subjectText,
+                        'id': newId,
+                      });
+                    } else {
+                      // Edit existing course
+                      if (editIndex != null && editIndex < customCourses[selectedDay]!.length) {
+                        customCourses[selectedDay]![editIndex] = {
+                          'Time': timeString,
+                          'Subject': subjectText,
+                          'id': courseToEdit['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                        };
+                      }
+                    }
+                    
+                    _saveCustomCourses();
+                    _mergeCustomCourses();
+                    _sortAndUpdateTimetable(); // Re-sort and update
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    courseToEdit == null ? 'Add' : 'Save',
+                    style: const TextStyle(color: Color(0xFFE0E2DB)),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Validate 24-hour format (HH:mm)
+  bool _isValid24HourFormat(String time) {
+    if (time.isEmpty) return false;
+    
+    // Pattern: HH:mm where HH is 00-23 and mm is 00-59
+    final time24Pattern = RegExp(r'^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$');
+    return time24Pattern.hasMatch(time.trim());
+  }
+
+  // Parse 24-hour format time string to DateTime
+  DateTime _parseTime24(String time24) {
+    try {
+      final parts = time24.trim().split(':');
+      if (parts.length != 2) {
+        throw FormatException('Invalid time format');
+      }
+      
+      int hours = int.parse(parts[0]);
+      int minutes = int.parse(parts[1]);
+      
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        throw FormatException('Invalid time values');
+      }
+      
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hours, minutes);
+    } catch (e) {
+      print("Error parsing 24-hour time '$time24': $e");
+      return DateTime(1970); // Return a very old date on failure
+    }
+  }
+
+  // Delete custom course
+  Future<void> _deleteCustomCourse(String day, int index) async {
+    if (index < customCourses[day]!.length) {
+      customCourses[day]!.removeAt(index);
+      await _saveCustomCourses();
+      _mergeCustomCourses();
+      _sortAndUpdateTimetable(); // Re-sort and update
+    }
+  }
+
+  // Sort and update timetable without clearing data
+  void _sortAndUpdateTimetable() {
+    // Remove custom courses from timetable first
+    timetable.forEach((day, classes) {
+      classes.removeWhere((course) => course['isCustom'] == 'true');
+    });
+    
+    // Merge custom courses back
+    _mergeCustomCourses();
+    
+    // Sort classes by time
+    timetable.forEach((day, classes) {
+      classes.sort((a, b) {
+        try {
+          DateTime timeA = _parseTime(a['Time']!.split(' - ')[0]);
+          DateTime timeB = _parseTime(b['Time']!.split(' - ')[0]);
+          return timeA.compareTo(timeB);
+        } catch (_) {
+          return 0;
+        }
+      });
+    });
+    
+    setState(() {});
+    _findCurrentAndNextClass();
   }
 
   @override
@@ -391,15 +790,108 @@ class _TimetablePageState extends State<TimetablePage> {
                                       itemCount: dayClasses.length,
                                       itemBuilder: (context, i) {
                                         var entry = dayClasses[i];
-                                        return Card(
-                                          color: const Color.fromARGB(255, 122, 133, 133),
-                                          elevation: 3,
-                                          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          child: ListTile(
-                                            contentPadding: const EdgeInsets.all(15),
-                                            title: Text(entry['Subject'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color.fromARGB(255, 237, 240, 231))),
-                                            subtitle: Text(entry['Time'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color.fromARGB(255, 237, 240, 231))),
-                                            minTileHeight: 80,
+                                        bool isCustom = entry['isCustom'] == 'true';
+                                        String courseId = entry['id'] ?? '';
+                                        
+                                        // Find index in custom courses for editing/deleting
+                                        int customIndex = -1;
+                                        if (isCustom) {
+                                          customIndex = customCourses[day]!.indexWhere((c) => c['id'] == courseId);
+                                        }
+                                        
+                                        return Dismissible(
+                                          key: Key('${day}_${i}_${courseId}'),
+                                          direction: isCustom ? DismissDirection.endToStart : DismissDirection.none,
+                                          background: Container(
+                                            color: const Color.fromARGB(255, 232, 76, 65),
+                                            alignment: Alignment.centerRight,
+                                            padding: const EdgeInsets.only(right: 20),
+                                            child: const Icon(Icons.delete, color: Colors.white),
+                                          ),
+                                          confirmDismiss: (direction) async {
+                                            if (isCustom) {
+                                              return await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                  backgroundColor: const Color.fromARGB(255, 62, 78, 75),
+                                                  title: const Text('Delete Course', style: TextStyle(color: Color(0xFFE0E2DB))),
+                                                  content: Text(
+                                                    'Are you sure you want to delete "${entry['Subject']}"?',
+                                                    style: const TextStyle(color: Color(0xFFE0E2DB)),
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      style: ButtonStyle(
+                                                        foregroundColor: WidgetStateProperty.all(const Color(0xFFE0E2DB)),
+                                                      ),
+                                                      onPressed: () => Navigator.pop(context, false),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    ElevatedButton(
+                                                      style: ButtonStyle(
+                                                        backgroundColor: WidgetStateProperty.all(const Color.fromARGB(255, 232, 76, 65)),
+                                                      ),
+                                                      onPressed: () => Navigator.pop(context, true),
+                                                      child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ) ?? false;
+                                            }
+                                            return false;
+                                          },
+                                          onDismissed: (direction) {
+                                            if (isCustom && customIndex >= 0) {
+                                              _deleteCustomCourse(day, customIndex);
+                                            }
+                                          },
+                                          child: Card(
+                                            color: isCustom 
+                                              ? const Color.fromARGB(255, 100, 120, 120) 
+                                              : const Color.fromARGB(255, 122, 133, 133),
+                                            elevation: 3,
+                                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            child: ListTile(
+                                              contentPadding: const EdgeInsets.all(15),
+                                              title: Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      entry['Subject'] ?? '',
+                                                      style: const TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 22,
+                                                        color: Color.fromARGB(255, 237, 240, 231),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (isCustom)
+                                                    const Icon(
+                                                      Icons.edit,
+                                                      color: Color(0xFFE0E2DB),
+                                                      size: 20,
+                                                    ),
+                                                ],
+                                              ),
+                                              subtitle: Text(
+                                                entry['Time'] ?? '',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: Color.fromARGB(255, 237, 240, 231),
+                                                ),
+                                              ),
+                                              minTileHeight: 80,
+                                              onTap: isCustom && customIndex >= 0
+                                                ? () {
+                                                    _showAddCourseDialog(
+                                                      day: day,
+                                                      courseToEdit: customCourses[day]![customIndex],
+                                                      editIndex: customIndex,
+                                                    );
+                                                  }
+                                                : null,
+                                            ),
                                           ),
                                         );
                                       },
@@ -411,6 +903,11 @@ class _TimetablePageState extends State<TimetablePage> {
                       ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color.fromARGB(255, 122, 133, 133),
+        onPressed: () => _showAddCourseDialog(),
+        child: const Icon(Icons.add, color: Color(0xFFE0E2DB)),
       ),
     );
   }
