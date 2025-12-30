@@ -538,7 +538,8 @@ class _TimetablePageState extends State<TimetablePage> {
                         hintText: '16:00',
                         hintStyle: TextStyle(color: Colors.grey),
                       ),
-                      keyboardType: TextInputType.number,
+                      // Allow full datetime input so user can type ":" and numbers
+                      keyboardType: TextInputType.datetime,
                     ),
                     const SizedBox(height: 16),
                     // End time
@@ -551,7 +552,8 @@ class _TimetablePageState extends State<TimetablePage> {
                         hintText: '18:00',
                         hintStyle: TextStyle(color: Colors.grey),
                       ),
-                      keyboardType: TextInputType.number,
+                      // Allow full datetime input so user can type ":" and numbers
+                      keyboardType: TextInputType.datetime,
                     ),
                   ],
                 ),
