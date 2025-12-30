@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Chub/pages/events_and_holidays.dart';
+import 'events_and_holidays.dart';
 import 'timetable.dart';
 import 'bus.dart';
 import 'mess.dart';
@@ -10,7 +10,7 @@ class HomePage extends StatelessWidget {
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: const Color.fromARGB(255, 62, 78, 75), // Darker background
         appBarTheme: const AppBarTheme(
-          backgroundColor: const Color.fromARGB(255, 62, 78, 75), // Medium-dark AppBar
+          backgroundColor: Color.fromARGB(255, 62, 78, 75), // Medium-dark AppBar
           centerTitle: true,
         ),
       );

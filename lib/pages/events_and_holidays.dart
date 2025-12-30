@@ -66,7 +66,7 @@ class _EHPageState extends State<EHPage> {
       appBar: AppBar(
         toolbarHeight: 80,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: const Color(0xFFE0E2DB)),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFE0E2DB)),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -82,7 +82,7 @@ class _EHPageState extends State<EHPage> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: const Color(0xFFE0E2DB)),
+            icon: const Icon(Icons.refresh, color: Color(0xFFE0E2DB)),
             onPressed: () {
               setState(() {
                 isLoading = true;
@@ -111,12 +111,12 @@ class _EHPageState extends State<EHPage> {
                           children: [
                             Text(
                               event['Event'] ?? 'No Event',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFFE0E2DB)),
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFE0E2DB)),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               '${event['Date'] ?? ''} - ${event['Day'] ?? ''}',
-                              style: const TextStyle(fontSize: 18, color: const Color(0xFFE0E2DB)),
+                              style: const TextStyle(fontSize: 18, color: Color(0xFFE0E2DB)),
                             ),
                           ],
                         ),

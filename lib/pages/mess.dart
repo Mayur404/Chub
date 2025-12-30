@@ -103,7 +103,7 @@ class _MessPageState extends State<MessPage> {
       appBar: AppBar(
         title: const Text(
           'Mess Menu',
-          style: TextStyle(fontSize: 30, color: const Color(0xFFE0E2DB)),
+          style: TextStyle(fontSize: 30, color: Color(0xFFE0E2DB)),
         ),
         backgroundColor: const Color.fromARGB(255, 62, 78, 75),
         centerTitle: true,
@@ -162,8 +162,6 @@ class _MessPageState extends State<MessPage> {
             ),
     );
   }
-
-  String _getCurrentDay() => daysOfWeek[DateTime.now().weekday - 1];
 
   int _getCurrentDayIndex() => DateTime.now().weekday - 1;
 }

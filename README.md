@@ -18,6 +18,25 @@ A Flutter application designed to help students manage their daily activities an
 
 The app features a modern dark theme with a clean, intuitive UI built with Flutter Material Design.
 
+### Home Screen
+![Home Screen](screenshots/home.png)
+
+### Bus Schedule
+![Bus Schedule](screenshots/bus.png)
+
+### Mess Menu
+![Mess Menu](screenshots/mess.png)
+
+### Timetable
+![Timetable](screenshots/timetable.png)
+
+### Events & Holidays
+![Events & Holidays](screenshots/events.png)
+
+### Debt Tracker
+![Debt Tracker](screenshots/debt_tracker.png)
+
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -162,14 +181,6 @@ flutter build web --release
 ```
 Output: `build/web/` directory
 
-## ✅ Platform Support
-
-- ✅ Android
-- ✅ iOS
-- ✅ Web
-- ✅ Windows
-- ✅ macOS
-- ✅ Linux
 
 ## 🧪 Testing
 
@@ -185,30 +196,3 @@ flutter test
 - Bus schedules update every 30 seconds to show the next available bus
 - All pages support pull-to-refresh functionality
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 👤 Author
-
-**Mayur404**
-- GitHub: [@Mayur404](https://github.com/Mayur404)
-
-## 🙏 Acknowledgments
-
-- Flutter team for the amazing framework
-- All package contributors whose work made this app possible
-
----
-
-⭐ If you find this project helpful, consider giving it a star!

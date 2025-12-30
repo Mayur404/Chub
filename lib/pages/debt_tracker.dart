@@ -2,25 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-void main() {
-  runApp(const DebtTrackerApp());
-}
-
-class DebtTrackerApp extends StatelessWidget {
-  const DebtTrackerApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blueGrey,
-      ),
-      home: const DebtTrackerPage(),
-    );
-  }
-}
-
 class Debt {
   String name;
   String type;
